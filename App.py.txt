@@ -1,0 +1,90 @@
+import streamlit as st
+import json
+import os
+
+# Pattern हरूलाई सुरक्षित गर्ने JSON फाइलको नाम
+FILE_NAME = "patterns.json"
+
+def load_patterns():
+    """पहिलेका pattern हरू load गर्ने function"""
+    if os.path.exists(FILE_NAME):
+        with open(FILE_NAME, "r") as f:
+            return json.load(f)
+    return []
+
+def save_patterns(patterns):
+    """pattern हरू save गर्ने function"""
+    with open(FILE_NAME, "w") as f:
+        json.dump(patterns, f, indent=4)
+
+def transform_number(number):
+    """
+    6-अंकीय नम्बरका हरेक digit मा +1 लागू गर्ने
+    यदि digit 0 छ भने, त्यसलाई 1 राख्ने
+    """
+    new_number = ""
+    for digit in number:
+        if digit == "0":
+            new_number += "1"
+        else:
+            new_number += str(int(digit) + 1)
+    return new_number
+
+def highlight_matches(prev, curr):
+    """
+    पहिलेको र अहिलेको transformed नम्बर तुलना गर्ने,
+    जहाँ digit मिल्छ, त्यहाँ digit लाई ⭕digit⭕ ले highlight गर्ने
+    """
+    result = ""
+    for d1, d2 in zip(prev, curr):
+        if d1 == d2:
+            result += f"⭕{d2}⭕"
+        else:
+            result += d2
+    return result
+
+# Streamlit App सुरु
+st.title("Lottery Number Pattern App")
+st.write("6-अंकीय नम्बर दिनुहोस्, प्रत्येक digit मा +1 लागू हुन्छ, र अघिल्लो दिनको नम्बरसँग तुलना गरिन्छ।")
+
+# पुरानो pattern हरू load गर्ने
+patterns = load_patterns()
+day = len(patterns) + 1  # आजको दिन
+
+# Input लिने
+user_input = st.text_input("6-अंकीय नम्बर:", max_chars=6)
+
+if st.button("Submit"):
+    if len(user_input) != 6 or not user_input.isdigit():
+        st.error("कृपया ठ्याक्कै 6-अंकीय नम्बर लेख्नुहोस्।")
+    else:
+        # नयाँ नम्बर निकाल्ने (+1 लागू गरेर)
+        new_transformed = transform_number(user_input)
+        st.write("परिवर्तित नम्बर:", new_transformed)
+        
+        # यदि अघिल्लो दिनको नम्बर छ भने तुलना गर्ने
+        if patterns:
+            prev_transformed = patterns[-1]["transformed"]
+            highlighted = highlight_matches(prev_transformed, new_transformed)
+            st.write("अघिल्लो दिनको नम्बर:", prev_transformed)
+            st.write("मिल्ने digit हरू highlight गरिएको:", highlighted)
+        else:
+            st.info("पहिलो दिन, तुलना गर्नका लागि अघिल्लो नम्बर छैन।")
+        
+        # नयाँ pattern लाई history मा save गर्ने
+        new_entry = {
+            "day": day,
+            "original": user_input,
+            "transformed": new_transformed
+        }
+        patterns.append(new_entry)
+        save_patterns(patterns)
+        st.success("Pattern सुरक्षित भयो!")
+
+# History हेर्नका लागि
+if st.checkbox("History देखाउनुहोस्"):
+    if patterns:
+        for entry in patterns:
+            st.write(f"Day {entry['day']}: Original = {entry['original']}, Transformed = {entry['transformed']}")
+    else:
+        st.info("कुनै pattern सुरक्षित भएको छैन।")
